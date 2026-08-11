@@ -20,7 +20,7 @@ extern volatile int16 left_real_speed;
 extern volatile int16 right_real_speed;
 
 extern uint8 base_pwm_val;
-extern uint8 target_speed_pulse;
+extern uint16 target_speed_pulse;   // uint16：直线 Speed+boost 峰值可超 255
 extern uint8 heibaival;
 extern float err_scale;
 extern volatile int16 steer_error;
@@ -33,17 +33,17 @@ extern volatile uint8 cross_state;
 extern uint8 cross_row_count;
 
 /* 直线加速 / 弯道减速（speed_boost 加到速度环目标） */
-extern int16 speed_boost;        // 当前速度增量（0 ~ boost_max）
-extern uint8 boost_max;          // 速度增量上限（按键可调）
-extern uint8 boost_up_step;      // 直道加速步长（按键可调）
-extern uint8 boost_down_step;    // 弯道减速步长（按键可调）
-extern uint8 curve_thresh;       // 弯道判定阈值：|mid_line[curve_row]-79| 超过则判弯道（按键可调）
-extern uint8 curve_row;          // 弯道判定行（按键可调）
-extern uint8 straight_tol;       // 直道稳定容差（25~30 行相对 79 的允许偏差）（按键可调）
+extern uint16 speed_boost;        // 当前速度增量（0 ~ boost_max）
+extern uint16 boost_max;          // 速度增量上限（按键可调）
+extern uint16 boost_up_step;      // 直道加速步长（按键可调）
+extern uint16 boost_down_step;    // 弯道减速步长（按键可调）
+extern uint16 curve_thresh;       // 弯道判定阈值：|mid_line[curve_row]-79| 超过则判弯道（按键可调）
+extern uint16 curve_row;          // 弯道判定行（按键可调）
+extern uint16 straight_tol;       // 直道稳定容差（相对 79 的允许偏差）（按键可调）
 
 /* 急弯内侧轮反转（差速回正，仅在转向打满时启用） */
-extern volatile int16 rev_thresh;  // 反转启用阈值：|steer_error| 超过才反转（按键可调）
-extern volatile int16 rev_max;     // 反转量上限（按键可调）
+extern volatile int16 rev_thresh;  // 反转启用阈值：|steer_error| 超过才反转
+extern volatile int16 rev_max;     // 反转量上限
 extern volatile int16 rev_cur;     // 当前反转量（每 10ms 渐进逼近目标，CPU1 可显示）
 
 #endif

@@ -3,13 +3,14 @@
 
 #include "zf_common_headfile.h"
 
-/* 上位机可调参数索引（与 param_names[] 对应；Cross Rows/Err Th 暂不纳入按键循环） */
+/* 按键可调参数索引（与 param_names[] 对应；Cross Rows/Err Th 暂不纳入按键循环） */
 typedef enum {
     PARAM_SPEED = 0,
-    PARAM_REV_THRESH,
-    PARAM_REV_MAX,
-    PARAM_STEER_KP,
-    PARAM_STEER_KD,
+    PARAM_BOOST_MAX,
+    PARAM_BOOST_UP,
+    PARAM_BOOST_DOWN,
+    PARAM_CURVE_THRESH,
+    PARAM_STRAIGHT_TOL,
     PARAM_COUNT
 } ParamIndex;
 

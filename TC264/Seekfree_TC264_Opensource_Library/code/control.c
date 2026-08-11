@@ -22,7 +22,7 @@ uint8 mid_line[TRACK_IMAGE_H];
 
 /* ---------- 控制参数 ---------- */
 uint8 base_pwm_val = 5;          // 正转基础占空比(%)，动态维持值
-uint8 target_speed_pulse = 210;  // 速度环目标（编码器脉冲/10ms）
+uint16 target_speed_pulse = 210; // 速度环目标（编码器脉冲/10ms），uint16 以容纳 boost 峰值
 float err_scale = 1.3f;          // 中线偏差 → 转向目标系数
 volatile int16 steer_error = 0;  // 当前转向误差（平滑后）
 
@@ -54,7 +54,7 @@ void clear_integrals(void) {
  */
 void boost_update(void)
 {
-    uint8 r;
+    uint16 r;
     int16 max_dev = 0;
 
     if (cross_state || is_learning())
@@ -63,7 +63,8 @@ void boost_update(void)
         return;
     }
 
-    /* 前方曲率：扫描 25~40 行带，取距中心最大偏差（INVALID 跳过） */
+    /* 前方曲率：扫描 STR_ROW_LO~curve_row 行带，取距中心最大偏差（INVALID 跳过）
+     * 注意：行号越小=越前方/越远，STR_ROW_LO(25) 为远界、curve_row(40) 为近界 */
     for (r = STR_ROW_LO; r <= curve_row; r++)
     {
         if (mid_line[r] >= TRACK_IMAGE_W) continue;   /* INVALID 跳过 */
@@ -81,28 +82,28 @@ void boost_update(void)
         else {
             tgt = (int16)boost_max * ((int16)curve_thresh - max_dev) / span;
             if (tgt < 0) tgt = 0;
-            if (tgt > (int16)boost_max) tgt = boost_max;
+            if (tgt > (int16)boost_max) tgt = (int16)boost_max;
         }
     }
 
     /* 全无有效行（丢线）→ 保守降速，避免带速冲入弯 */
     {
-        uint8 valid = 0;
+        uint16 valid = 0;
         for (r = STR_ROW_LO; r <= curve_row; r++)
             if (mid_line[r] < TRACK_IMAGE_W) { valid = 1; break; }
         if (!valid) tgt = 0;
     }
 
     /* 斜坡趋近：加速慢（up_step），减速快（down_step） */
-    if (speed_boost < tgt)
+    if (speed_boost < (uint16)tgt)
     {
-        speed_boost += (int16)boost_up_step;
-        if (speed_boost > tgt) speed_boost = tgt;
+        speed_boost += boost_up_step;
+        if (speed_boost > (uint16)tgt) speed_boost = (uint16)tgt;
     }
-    else if (speed_boost > tgt)
+    else if (speed_boost > (uint16)tgt)
     {
-        speed_boost -= (int16)boost_down_step;
-        if (speed_boost < tgt) speed_boost = tgt;
+        if (speed_boost >= boost_down_step) speed_boost -= boost_down_step;
+        else speed_boost = 0;
     }
 }
 

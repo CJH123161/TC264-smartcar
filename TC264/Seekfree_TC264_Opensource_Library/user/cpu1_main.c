@@ -81,29 +81,25 @@ void core1_main(void)
             param_display_str(buf);
             ips200_show_string(0, 125, buf);
 
-            // 第二行：转向 PID + 当前偏差
-            sprintf(buf, "St:%.2f/%.2f Err:%4d", pid_steer.KP, pid_steer.KD, steer_error);
+            // 第二行：boost 当前/上限 + 转向误差 Err（正=线在左→左弯）
+            sprintf(buf, "Bst:%3d/%3d Err:%4d", speed_boost, boost_max, steer_error);
             ips200_show_string(0, 145, buf);
 
-            // 第三行：左右实际速度 + 速度增量
-            sprintf(buf, "L S:%4d R S:%4d B:%2d", left_real_speed, right_real_speed, speed_boost);
+            // 第三行：左右实际速度 + 加减速步长
+            sprintf(buf, "L S:%4d R S:%4d U:%d D:%d", left_real_speed, right_real_speed, boost_up_step, boost_down_step);
             ips200_show_string(0, 165, buf);
 
-            // 第四行：十字识别参数 + 误差阈值(TH)
-            sprintf(buf, "CR:%d TH:%d", cross_row_count, err_thresh);
+            // 第四行：十字识别参数 + 误差阈值 + 曲率判定
+            sprintf(buf, "CR:%d TH:%d Ct:%d T:%d", cross_row_count, err_thresh, curve_thresh, straight_tol);
             ips200_show_string(0, 185, buf);
 
-            // 第五行：反转阈值 + 反转上限
-            sprintf(buf, "RevTh:%d RevMax:%d", rev_thresh, rev_max);
+            // 第五行：当前反转量
+            sprintf(buf, "RevCur:%d", rev_cur);
             ips200_show_string(0, 205, buf);
 
-            // 第六行：当前反转量
-            sprintf(buf, "RevCur:%d", rev_cur);
-            ips200_show_string(0, 225, buf);
-
-            // 第七行：十字路口状态 + 学习提示
+            // 第六行：十字路口状态 + 学习提示
             sprintf(buf, "%-6s %s", cross_state ? "CROSS!" : "", is_learning() ? "" : "OK!");
-            ips200_show_string(0, 245, buf);
+            ips200_show_string(0, 225, buf);
         }
     }
 }

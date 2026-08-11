@@ -6,9 +6,9 @@
 /* 图像中线参考列（像素）：非 TRACK_IMAGE_W/2，是摄像头安装后的经验偏移值 */
 #define LINE_CENTER   79
 
-/* err 计算用宏：90~55 行，步进 5 */
-#define ERR_ROW_HI    100             // 最高行（最远处）
-#define ERR_ROW_LO    55             // 最低行（最近处）
+/* err 计算用宏：90~55 行，步进 5（注意：行号越小=越前方/越远，行号越大=越近车头，勿与"最远/最近"直译混淆） */
+#define ERR_ROW_HI    100             // 较大行号 → 近处行（车头侧）
+#define ERR_ROW_LO    55             // 较小行号 → 远处行（前方侧）
 #define ERR_ROW_STEP  5
 
 #define ERR_MAX_STEP  15             // 每 10ms 转向误差最大变化量

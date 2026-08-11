@@ -20,19 +20,19 @@ int16 err_thresh = 10;
 uint8   cross_row_count     = 22;    // 全白行数阈值
 
 const char* param_names[] = {
-    "Speed", "Rev Th",
-    "Rev Max", "Steer KP", "Steer KD"
+    "Speed", "BoostMax",
+    "BoostUp", "BoostDn", "CurveTh", "Straight"
 };
 uint8 cur_param_index = PARAM_SPEED;
 
 /* 直线加速 / 弯道减速（speed_boost 加到速度环目标，基础速度=弯道能过的上限） */
-int16 speed_boost       = 0;      // 当前速度增量（0 ~ boost_max）
-uint8 boost_max         = 30;     // 速度增量上限（直线 210+30=240）
-uint8 boost_up_step     = 10;      // 直线加速步长（快爬升）
-uint8 boost_down_step   = 20;      // 弯道减速步长（急回落）
-uint8 curve_thresh      = 20;     // 弯道判断阈值（与79的偏差，超过此 boost 归 0）
-uint8 curve_row         = 40;     // 弯道判断行（前方曲率扫描带 25~40 行）
-uint8 straight_tol      = 12;     // 直线稳定容差（偏差低于此 boost 满档）
+uint16 speed_boost       = 0;      // 当前速度增量（0 ~ boost_max）
+uint16 boost_max         = 60;     // 速度增量上限（直线峰值 = Speed + boost_max）
+uint16 boost_up_step     = 20;      // 直线加速步长（快爬升）
+uint16 boost_down_step   = 40;      // 弯道减速步长（急回落）
+uint16 curve_thresh      = 20;     // 弯道判断阈值（与79的偏差，超过此 boost 归 0）
+uint16 curve_row         = 40;     // 弯道判断行（前方曲率扫描带 25~40 行）
+uint16 straight_tol      = 12;     // 直线稳定容差（偏差低于此 boost 满档）
 
 /* 弯道内侧轮反转：|steer_error| 超过 rev_thresh 才反转，量不超过 rev_max */
 volatile int16 rev_thresh   = 40;   // 反转触发阈值（对应 pid_steer 输出限幅，按键可调）
@@ -49,53 +49,61 @@ void param_change(uint8 direction) {
             {
                 int v = (int)target_speed_pulse + delta * 10;
                 if (v < 0) v = 0;
+                if (v > 1000) v = 1000;
+                target_speed_pulse = (uint16)v;
+            } break;
+        case PARAM_BOOST_MAX:
+            {
+                int v = (int)boost_max + delta;
+                if (v < 0) v = 0;
                 if (v > 255) v = 255;
-                target_speed_pulse = (uint8)v;
+                boost_max = (uint16)v;
             } break;
-        case PARAM_REV_THRESH:
+        case PARAM_BOOST_UP:
             {
-                int v = (int)rev_thresh + delta;
+                int v = (int)boost_up_step + delta;
                 if (v < 0) v = 0;
+                if (v > 255) v = 255;
+                boost_up_step = (uint16)v;
+            } break;
+        case PARAM_BOOST_DOWN:
+            {
+                int v = (int)boost_down_step + delta;
+                if (v < 0) v = 0;
+                if (v > 255) v = 255;
+                boost_down_step = (uint16)v;
+            } break;
+        case PARAM_CURVE_THRESH:
+            {
+                int v = (int)curve_thresh + delta;
+                if (v < 1) v = 1;
                 if (v > 100) v = 100;
-                rev_thresh = (int16)v;
+                curve_thresh = (uint16)v;
             } break;
-        case PARAM_REV_MAX:
+        case PARAM_STRAIGHT_TOL:
             {
-                int v = (int)rev_max + delta;
-                if (v < 0) v = 0;
-                if (v > 50) v = 50;
-                rev_max = (int16)v;
-            } break;
-        case PARAM_STEER_KP:
-            {
-                float v = pid_steer.KP + ((direction == 0) ? 0.05f : -0.05f);
-                if (v < 0.0f) v = 0.0f;
-                if (v > 10.0f) v = 10.0f;
-                pid_steer.KP = v;
-            } break;
-        case PARAM_STEER_KD:
-            {
-                float v = pid_steer.KD + ((direction == 0) ? 0.05f : -0.05f);
-                if (v < 0.0f) v = 0.0f;
-                if (v > 10.0f) v = 10.0f;
-                pid_steer.KD = v;
+                int v = (int)straight_tol + delta;
+                if (v < 1) v = 1;
+                if (v > 100) v = 100;
+                straight_tol = (uint16)v;
             } break;
         default: break;
     }
 }
 
 /**
- * @brief 生成当前可调参数的显示字符串，如 "RevTh=38" / "SteerKP=1.08"
+ * @brief 生成当前可调参数的显示字符串，如 "Speed=210" / "BoostMax=40"
  * @param buf 输出缓冲区（至少 32 字节）
  */
 void param_display_str(char *buf)
 {
     switch (cur_param_index) {
-        case PARAM_SPEED:       sprintf(buf, "Speed=%d", (int)target_speed_pulse);  break;
-        case PARAM_REV_THRESH:  sprintf(buf, "RevTh=%d", (int)rev_thresh);          break;
-        case PARAM_REV_MAX:     sprintf(buf, "RevMax=%d", (int)rev_max);            break;
-        case PARAM_STEER_KP:    sprintf(buf, "SteerKP=%.2f", pid_steer.KP);         break;
-        case PARAM_STEER_KD:    sprintf(buf, "SteerKD=%.2f", pid_steer.KD);         break;
-        default:                sprintf(buf, "---"); break;
+        case PARAM_SPEED:         sprintf(buf, "Speed=%d", (int)target_speed_pulse);  break;
+        case PARAM_BOOST_MAX:     sprintf(buf, "BoostMax=%d", (int)boost_max);        break;
+        case PARAM_BOOST_UP:      sprintf(buf, "BoostUp=%d", (int)boost_up_step);     break;
+        case PARAM_BOOST_DOWN:    sprintf(buf, "BoostDn=%d", (int)boost_down_step);   break;
+        case PARAM_CURVE_THRESH:  sprintf(buf, "CurveTh=%d", (int)curve_thresh);      break;
+        case PARAM_STRAIGHT_TOL:  sprintf(buf, "Straight=%d", (int)straight_tol);     break;
+        default:                  sprintf(buf, "---"); break;
     }
 }
