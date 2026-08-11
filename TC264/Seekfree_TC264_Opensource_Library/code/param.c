@@ -25,18 +25,18 @@ const char* param_names[] = {
 };
 uint8 cur_param_index = PARAM_SPEED;
 
-/* 直线加速 / 弯道减速（speed_boost 加到速度环目标） */
+/* 直线加速 / 弯道减速（speed_boost 加到速度环目标，基础速度=弯道能过的上限） */
 int16 speed_boost       = 0;      // 当前速度增量（0 ~ boost_max）
-uint8 boost_max         = 6;      // 速度增量上限
-uint8 boost_up_step     = 1;      // 直线加速步长
-uint8 boost_down_step   = 2;      // 弯道减速步长
-uint8 curve_thresh      = 20;     // 弯道判断阈值（与79的偏差）
-uint8 curve_row         = 40;     // 弯道判断行
-uint8 straight_tol      = 12;     // 直线稳定容差（25~30 行距中心 79 的偏差）
+uint8 boost_max         = 30;     // 速度增量上限（直线 210+30=240）
+uint8 boost_up_step     = 10;      // 直线加速步长（快爬升）
+uint8 boost_down_step   = 20;      // 弯道减速步长（急回落）
+uint8 curve_thresh      = 20;     // 弯道判断阈值（与79的偏差，超过此 boost 归 0）
+uint8 curve_row         = 40;     // 弯道判断行（前方曲率扫描带 25~40 行）
+uint8 straight_tol      = 12;     // 直线稳定容差（偏差低于此 boost 满档）
 
 /* 弯道内侧轮反转：|steer_error| 超过 rev_thresh 才反转，量不超过 rev_max */
 volatile int16 rev_thresh   = 40;   // 反转触发阈值（对应 pid_steer 输出限幅，按键可调）
-volatile int16 rev_max      = 6;    // 反转占空比(%)上限（按键可调）
+volatile int16 rev_max      = 3;    // 反转占空比(%)上限（按键可调）
 /* rev_cur（当前反转占空比）是运行状态，定义在 control.c */
 
 #pragma section all restore

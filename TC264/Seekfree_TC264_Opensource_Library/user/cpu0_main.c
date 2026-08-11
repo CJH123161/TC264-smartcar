@@ -49,8 +49,8 @@ int core0_main(void) {
                 clear_integrals();
             }
 
-            /* boost_update 已注释：排除直线加速影响，速度目标固定 */
-            // boost_update();
+            /* boost_update：直线加速（基础速度 220 之上叠加），每 10ms 在 control_loop 前调用 */
+            boost_update();
 
             control_loop();
         }

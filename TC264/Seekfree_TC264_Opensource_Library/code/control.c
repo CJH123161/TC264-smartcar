@@ -22,7 +22,7 @@ uint8 mid_line[TRACK_IMAGE_H];
 
 /* ---------- ¿ØÖÆ²ÎÊı ---------- */
 uint8 base_pwm_val = 5;          // Õı×ª»ù´¡Õ¼¿Õ±È(%)£¬¶¯Ì¬Î¬³ÖÖµ
-uint8 target_speed_pulse = 200;  // ËÙ¶È»·Ä¿±ê£¨±àÂëÆ÷Âö³å/10ms£©
+uint8 target_speed_pulse = 210;  // ËÙ¶È»·Ä¿±ê£¨±àÂëÆ÷Âö³å/10ms£©
 float err_scale = 1.3f;          // ÖĞÏßÆ«²î ¡ú ×ªÏòÄ¿±êÏµÊı
 volatile int16 steer_error = 0;  // µ±Ç°×ªÏòÎó²î£¨Æ½»¬ºó£©
 
@@ -30,7 +30,6 @@ volatile int16 rev_cur      = 0;  // µ±Ç°·´×ªÕ¼¿Õ±È(%)£¬Ã¿ 10ms ½¥½øÆ½»¬£¨CPU1 Ï
 
 static int16 last_mid_error = 0;     // ÉÏÒ»Ö¡×ªÏòÄ¿±ê£¨ÎŞÓĞĞ§ĞĞÊ±±£³Ö£©
 static uint8 rev_active_flag = 0;    /* ·´×ª½øÈë/ÍË³öÃÅ¼÷±êÖ¾ */
-static uint8 straight_cnt = 0;       // Ö±ÏßÁ¬ĞøÈ·ÈÏÖ¡Êı
 
 #pragma section all restore
 
@@ -39,7 +38,7 @@ void control_init(void)
 {
     PID_Init(&pid_speed_left,  0.08, 0.07, 0.1, 50, 15);
     PID_Init(&pid_speed_right, 0.1,  0.06, 0.1, 50, 15);
-    PID_Init(&pid_steer, 1.18, 0.0, 0.70, 0, 38);
+    PID_Init(&pid_steer, 1.25, 0.0, 0.8, 0, 38);
 }
 
 void clear_integrals(void) {
@@ -49,54 +48,61 @@ void clear_integrals(void) {
 }
 
 /**
- * @brief Ö±Ïß¼ÓËÙ / ÍäµÀ¼õËÙ×´Ì¬»ú£¨Ã¿ 10ms µ÷ÓÃÒ»´Î£©
- * µ±Ç°±»Ö÷Ñ­»·×¢ÊÍ£¨ÌáËÙ´ıÖØ×ö£©£¬±£Áôº¯Êı¹©ÒÔºóÆôÓÃ¡£
+ * @brief Ö±Ïß¼ÓËÙ / ÍäµÀ¼õËÙ£¨Á¬ĞøÇúÂÊÆÂ¶È°æ£¬Ã¿ 10ms µ÷ÓÃÒ»´Î£©
+ * »ù´¡ËÙ¶È target_speed_pulse ÊÇ"ÍäµÀÄÜ¹ıµÄÉÏÏŞ"£»Ö±Ïß¶ÎÔÚ´ËÖ®ÉÏµş speed_boost£¬
+ * ÍäµÀ´¦ËæÇúÂÊÁ¬Ğø½µ»Ø 0¡£Ç°·½Æ«²îÔ½´ó boost Ä¿±êÔ½µÍ£¬²»ÓÃ¶àĞĞÈ«¾ÓÖĞ+Á¬ĞøÖ¡ÅĞ¶¨¡£
  */
 void boost_update(void)
 {
-    uint8 row;
-    uint8 all_straight = 1;
+    uint8 r;
+    int16 max_dev = 0;
 
     if (cross_state || is_learning())
     {
         speed_boost = 0;
-        straight_cnt = 0;
         return;
     }
 
-    if (mid_line[curve_row] != INVALID_BORDER)
+    /* Ç°·½ÇúÂÊ£ºÉ¨Ãè 25~40 ĞĞ´ø£¬È¡¾àÖĞĞÄ×î´óÆ«²î£¨INVALID Ìø¹ı£© */
+    for (r = STR_ROW_LO; r <= curve_row; r++)
     {
-        int16 dev = (int16)mid_line[curve_row] - LINE_CENTER;
-        if (dev < 0) dev = -dev;
-        if (dev > (int16)curve_thresh)
-        {
-            speed_boost -= (int16)boost_down_step;
-            if (speed_boost < 0) speed_boost = 0;
-            straight_cnt = 0;
-            return;
-        }
-    }
-
-    for (row = STR_ROW_LO; row <= STR_ROW_HI; row++)
-    {
-        if (mid_line[row] == INVALID_BORDER) { all_straight = 0; break; }
-        int16 d = (int16)mid_line[row] - LINE_CENTER;
+        if (mid_line[r] >= TRACK_IMAGE_W) continue;   /* INVALID Ìø¹ı */
+        int16 d = (int16)mid_line[r] - LINE_CENTER;
         if (d < 0) d = -d;
-        if (d > (int16)straight_tol) { all_straight = 0; break; }
+        if (d > max_dev) max_dev = d;
     }
 
-    if (all_straight)
+    /* ÇúÂÊ ¡ú boost Ä¿±ê£ºÖ±ÏßÂúµµ£»³¬ straight_tol ºóÏßĞÔÏÂ½µ£¬µ½ curve_thresh ¹é 0 */
+    int16 tgt = (int16)boost_max;
+    if (max_dev > (int16)straight_tol)
     {
-        if (straight_cnt < 255) straight_cnt++;
-        if (straight_cnt >= STRAIGHT_REQ_FRAMES)
-        {
-            speed_boost += (int16)boost_up_step;
-            if (speed_boost > (int16)boost_max) speed_boost = boost_max;
+        int16 span = (int16)curve_thresh - (int16)straight_tol;
+        if (span <= 0) tgt = 0;
+        else {
+            tgt = (int16)boost_max * ((int16)curve_thresh - max_dev) / span;
+            if (tgt < 0) tgt = 0;
+            if (tgt > (int16)boost_max) tgt = boost_max;
         }
     }
-    else
+
+    /* È«ÎŞÓĞĞ§ĞĞ£¨¶ªÏß£©¡ú ±£ÊØ½µËÙ£¬±ÜÃâ´øËÙ³åÈëÍä */
     {
-        straight_cnt = 0;
+        uint8 valid = 0;
+        for (r = STR_ROW_LO; r <= curve_row; r++)
+            if (mid_line[r] < TRACK_IMAGE_W) { valid = 1; break; }
+        if (!valid) tgt = 0;
+    }
+
+    /* Ğ±ÆÂÇ÷½ü£º¼ÓËÙÂı£¨up_step£©£¬¼õËÙ¿ì£¨down_step£© */
+    if (speed_boost < tgt)
+    {
+        speed_boost += (int16)boost_up_step;
+        if (speed_boost > tgt) speed_boost = tgt;
+    }
+    else if (speed_boost > tgt)
+    {
+        speed_boost -= (int16)boost_down_step;
+        if (speed_boost < tgt) speed_boost = tgt;
     }
 }
 
@@ -162,8 +168,8 @@ void control_loop(void)
         rev_active_flag = 0;
     }
 
-    /* -- 2. ËÙ¶È»·Ä¿±ê·ÖÁÑ£ºÕı³£=+140£¬ÄÚ²àÂÖ=·´×ª -- */
-    int speed_target = (int)target_speed_pulse;
+    /* -- 2. ËÙ¶È»·Ä¿±ê·ÖÁÑ£ºÕı³£=»ù´¡ËÙ¶È+boost£¬ÄÚ²àÂÖ=·´×ª -- */
+    int speed_target = (int)target_speed_pulse + (int)speed_boost;
     int left_tgt  = speed_target;
     int right_tgt = speed_target;
     if (rev_cur > 0)
